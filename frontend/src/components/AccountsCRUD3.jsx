@@ -20,7 +20,8 @@ function AccountsCRUD3() {
 
   // Configuration
   const accountsPerPage = 5;
-  const API = process.env.REACT_APP_API_URL || 'https://magnetic-depose-probing.ngrok-free.dev/accounts';
+  // const API = process.env.REACT_APP_API_URL || 'https://magnetic-depose-probing.ngrok-free.dev/accounts';
+  const API = 'https://magnetic-depose-probing.ngrok-free.dev/accounts';
 
   // Create axios instance with default config
   const api = useMemo(() => {
