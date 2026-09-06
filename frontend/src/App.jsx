@@ -1,10 +1,10 @@
-import AccountsCRUD3 from './components/AccountsCRUD3'
+import AccountsCRUD1 from './components/AccountsCRUD1'
 
 function App() {
 
   return (
     <>
- <AccountsCRUD3 />
+ <AccountsCRUD1 />
     </>
   );
 }
