@@ -1,0 +1,90 @@
+winget install ngrok -s msstore
+
+ngrok version
+
+https://ngrok.com/?utm_source=chatgpt.com  ---> create account
+
+Sign in/create an account and get your authtoken.
+
+Don't send your authtoken to me.
+
+Run:
+=======
+ngrok config add-authtoken YOUR_AUTHTOKEN
+
+ngrok config add-authtoken 3Ix5VBCr8PczdIDb4rNXcAxqX1G_UpTprUBPkUMGt7o8SGG9
+Authtoken saved to configuration file: C:\Users\bhimsen\AppData\Local\ngrok\ngrok.yml
+
+In the second window run:
+==========================
+ngrok http 5000
+
+ngrok's official documentation uses ngrok http <port> to expose the local application.
+--------------------------------------------------------------------------------
+You should see something similar to:Forwarding
+
+https://abc123.ngrok-free.app -> http://localhost:5000
+
+Your URL will be different.
+Test ngrok BEFORE changing React
+
+This is very important.
+
+Suppose ngrok gives you:
+
+https://abc123.ngrok-free.app
+
+Open:
+
+https://abc123.ngrok-free.app/accounts
+
+
+Change React API URL
+
+Now we deal with GitHub.
+
+Your React code currently probably has something like:
+
+axios.get("http://localhost:5000/accounts")
+
+Change it to:
+
+axios.get("https://abc123.ngrok-free.app/accounts")
+
+Obviously replace abc123... with your actual ngrok URL.
+
+For your CRUD:
+==============
+// GET
+axios.get("https://abc123.ngrok-free.app/accounts");
+
+// POST
+axios.post("https://abc123.ngrok-free.app/accounts", data);
+
+// PUT
+axios.put(`https://abc123.ngrok-free.app/accounts/${id}`, data);
+
+// DELETE
+axios.delete(`https://abc123.ngrok-free.app/accounts/${id}`);
+
+GitHub update
+==============
+Yes, you need to update GitHub, because your React application is being served from GitHub Pages.
+
+From your React project:
+
+git add .
+git commit -m "Connect frontend to Express API"
+git push origin master
+
+Very important
+=======================
+There are three things you must keep running for this demonstration:
+------------------------------------------------------------------
+Terminal 1:
+
+node server.js
+
+Terminal 2:
+
+ngrok http 5000

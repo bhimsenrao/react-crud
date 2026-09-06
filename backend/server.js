@@ -48,4 +48,7 @@ app.delete('/accounts/:id', (req, res) => {
   });
 });
 
-app.listen(5000, () => console.log('Server running on port 5000'));
+// START SERVER
+app.listen(5000, "0.0.0.0", () => {
+    console.log('Server running on port 5000');
+});

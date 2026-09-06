@@ -21,7 +21,7 @@ function AccountsCRUD1() {
   const accountsPerPage = 5;
 
   // Backend API
-  const API = 'http://localhost:5000/accounts';
+  const API = 'https://magnetic-depose-probing.ngrok-free.dev/accounts';
 
 
   // ============================

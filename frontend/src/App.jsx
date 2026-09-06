@@ -1,13 +1,13 @@
 import { useState } from 'react'
 
-import AccountsCRUD1 from './components/AccountsCRUD1'
+import AccountsCRUD3 from './components/AccountsCRUD3'
 
 function App() {
   const [count, setCount] = useState(0)
 
   return (
     <>
-    <AccountsCRUD1 />
+    <AccountsCRUD3 />
     </>
   );
 }
