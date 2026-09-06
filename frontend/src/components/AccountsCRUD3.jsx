@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 
-function AccountsCRUD1() {
+function AccountsCRUD3() {
 
   // ============================
   // STATE
@@ -13,38 +13,77 @@ function AccountsCRUD1() {
   const [name, setName] = useState('');
   const [balance, setBalance] = useState('');
   const [editId, setEditId] = useState(null);
-
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  // Number of accounts per page
+  // Configuration
   const accountsPerPage = 5;
+  const API = process.env.REACT_APP_API_URL || 'https://magnetic-depose-probing.ngrok-free.dev/accounts';
 
-  // Backend API
-  const API = 'https://magnetic-depose-probing.ngrok-free.dev/accounts';
+  // Create axios instance with default config
+  const api = useMemo(() => {
+    return axios.create({
+      baseURL: API,
+      timeout: 5000
+    });
+  }, []);
+
+
+  // ============================
+  // HELPER: Clear messages
+  // ============================
+
+  const clearMessages = () => {
+    setError('');
+    setSuccess('');
+  };
+
+
+  // ============================
+  // VALIDATION
+  // ============================
+
+  const validateForm = () => {
+    clearMessages();
+
+    if (!name.trim()) {
+      setError('Name is required');
+      return false;
+    }
+
+    if (name.trim().length < 2) {
+      setError('Name must be at least 2 characters');
+      return false;
+    }
+
+    if (!balance || isNaN(balance) || Number(balance) < 0) {
+      setError('Balance must be a positive number');
+      return false;
+    }
+
+    return true;
+  };
 
 
   // ============================
   // READ - GET ACCOUNTS
   // ============================
 
-  const fetchAccounts = () => {
+  const fetchAccounts = async () => {
+    setLoading(true);
+    clearMessages();
 
-    axios.get(API)
-      .then((response) => {
-
-        // Axios automatically converts JSON response
-        // into JavaScript object/array
-
-        setAccounts(response.data);
-
-      })
-      .catch((error) => {
-
-        console.error('Error fetching accounts:', error);
-
-      });
-
+    try {
+      const response = await api.get('/');
+      setAccounts(response.data || []);
+    } catch (err) {
+      setError(`Failed to fetch accounts: ${err.message}`);
+      console.error('Error fetching accounts:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -53,86 +92,51 @@ function AccountsCRUD1() {
   // ============================
 
   useEffect(() => {
-
     fetchAccounts();
-
-  }, []);
+  }, [api]);
 
 
   // ============================
   // CREATE / UPDATE
   // ============================
 
-  const handleSubmit = (e) => {
-
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    clearMessages();
+
+    if (!validateForm()) {
+      return;
+    }
 
     const payload = {
-      name: name,
+      name: name.trim(),
       balance: Number(balance)
     };
 
+    setLoading(true);
 
-    // ============================
-    // UPDATE
-    // ============================
+    try {
+      // UPDATE
+      if (editId) {
+        await api.put(`/${editId}`, payload);
+        setSuccess('Account updated successfully');
+        setEditId(null);
+      }
+      // CREATE
+      else {
+        await api.post('/', payload);
+        setSuccess('Account created successfully');
+        setCurrentPage(1);
+      }
 
-    if (editId) {
-
-      axios.put(
-        API + '/' + editId,
-        payload
-      )
-        .then((response) => {
-
-          console.log('Account updated:', response.data);
-
-          setEditId(null);
-
-          resetForm();
-
-          fetchAccounts();
-
-        })
-        .catch((error) => {
-
-          console.error('Update error:', error);
-
-        });
-
+      resetForm();
+      await fetchAccounts();
+    } catch (err) {
+      setError(`Failed to save account: ${err.message}`);
+      console.error('Save error:', err);
+    } finally {
+      setLoading(false);
     }
-
-
-    // ============================
-    // CREATE
-    // ============================
-
-    else {
-
-      axios.post(
-        API,
-        payload
-      )
-        .then((response) => {
-
-          console.log('Account created:', response.data);
-
-          resetForm();
-
-          fetchAccounts();
-
-          // Go to first page
-          setCurrentPage(1);
-
-        })
-        .catch((error) => {
-
-          console.error('Create error:', error);
-
-        });
-
-    }
-
   };
 
 
@@ -140,27 +144,25 @@ function AccountsCRUD1() {
   // DELETE
   // ============================
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this account?')) {
+      return;
+    }
 
-    axios.delete(
-      API + '/' + id
-    )
-      .then((response) => {
+    clearMessages();
+    setLoading(true);
 
-        console.log('Account deleted:', response.data);
-
-        fetchAccounts();
-
-        // Go to first page
-        setCurrentPage(1);
-
-      })
-      .catch((error) => {
-
-        console.error('Delete error:', error);
-
-      });
-
+    try {
+      await api.delete(`/${id}`);
+      setSuccess('Account deleted successfully');
+      setCurrentPage(1);
+      await fetchAccounts();
+    } catch (err) {
+      setError(`Failed to delete account: ${err.message}`);
+      console.error('Delete error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -169,13 +171,10 @@ function AccountsCRUD1() {
   // ============================
 
   const handleEdit = (account) => {
-
     setEditId(account.id);
-
     setName(account.name);
-
     setBalance(account.balance);
-
+    clearMessages();
   };
 
 
@@ -184,83 +183,46 @@ function AccountsCRUD1() {
   // ============================
 
   const resetForm = () => {
-
     setName('');
-
     setBalance('');
-
     setEditId(null);
-
   };
 
 
-  // =================================================
+  // ============================
   // PAGINATION
-  // =================================================
+  // ============================
 
-  const totalPages = Math.ceil(
-    accounts.length / accountsPerPage
-  );
-
-
-  // =================================================
-  // useMemo
-  // =================================================
-
-  /*
-    useMemo remembers the calculated result.
-
-    It recalculates currentAccounts when:
-
-    1. accounts changes
-    2. currentPage changes
-  */
+  const totalPages = Math.ceil(accounts.length / accountsPerPage);
 
   const currentAccounts = useMemo(() => {
-
-    console.log('Calculating current page accounts...');
-
-    const startIndex =
-      (currentPage - 1) * accountsPerPage;
-
-    const endIndex =
-      startIndex + accountsPerPage;
-
-    return accounts.slice(
-      startIndex,
-      endIndex
-    );
-
+    const startIndex = (currentPage - 1) * accountsPerPage;
+    const endIndex = startIndex + accountsPerPage;
+    return accounts.slice(startIndex, endIndex);
   }, [accounts, currentPage]);
 
-
-  // ============================
-  // NEXT PAGE
-  // ============================
-
   const nextPage = () => {
-
     if (currentPage < totalPages) {
-
       setCurrentPage(currentPage + 1);
-
     }
+  };
 
+  const previousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
   };
 
 
   // ============================
-  // PREVIOUS PAGE
+  // HELPER: Format currency
   // ============================
 
-  const previousPage = () => {
-
-    if (currentPage > 1) {
-
-      setCurrentPage(currentPage - 1);
-
-    }
-
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(value);
   };
 
 
@@ -269,229 +231,263 @@ function AccountsCRUD1() {
   // ============================
 
   return (
-
     <div
       style={{
         padding: '20px',
         maxWidth: '900px',
-        margin: 'auto'
+        margin: 'auto',
+        fontFamily: 'Arial, sans-serif'
       }}
     >
+      <h2>Bank Accounts</h2>
 
-      <h2>
-        Bank Accounts
-      </h2>
+      {/* Error Message */}
+      {error && (
+        <div
+          style={{
+            padding: '12px',
+            marginBottom: '15px',
+            backgroundColor: '#ffebee',
+            color: '#c62828',
+            borderRadius: '4px',
+            border: '1px solid #ef5350'
+          }}
+        >
+          ⚠️ {error}
+        </div>
+      )}
 
+      {/* Success Message */}
+      {success && (
+        <div
+          style={{
+            padding: '12px',
+            marginBottom: '15px',
+            backgroundColor: '#e8f5e9',
+            color: '#2e7d32',
+            borderRadius: '4px',
+            border: '1px solid #66bb6a'
+          }}
+        >
+          ✅ {success}
+        </div>
+      )}
 
-      {/* ==========================
-          FORM
-          ========================== */}
+      {/* Form */}
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          display: 'flex',
+          gap: '10px',
+          marginBottom: '20px',
+          flexWrap: 'wrap'
+        }}
+      >
+        <div>
+          <label htmlFor="name" style={{ display: 'block', marginBottom: '5px' }}>
+            Account Holder Name
+          </label>
+          <input
+            id="name"
+            type="text"
+            placeholder="Enter name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={loading}
+            style={{
+              padding: '8px',
+              borderRadius: '4px',
+              border: '1px solid #ccc'
+            }}
+            required
+          />
+        </div>
 
-      <form onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="balance" style={{ display: 'block', marginBottom: '5px' }}>
+            Balance
+          </label>
+          <input
+            id="balance"
+            type="number"
+            placeholder="0.00"
+            value={balance}
+            onChange={(e) => setBalance(e.target.value)}
+            disabled={loading}
+            min="0"
+            step="0.01"
+            style={{
+              padding: '8px',
+              borderRadius: '4px',
+              border: '1px solid #ccc'
+            }}
+            required
+          />
+        </div>
 
-        <input
-          type="text"
-          placeholder="Account Holder Name"
-          value={name}
-          onChange={(e) =>
-            setName(e.target.value)
-          }
-          required
-        />
-
-
-        <input
-          type="number"
-          placeholder="Balance"
-          value={balance}
-          onChange={(e) =>
-            setBalance(e.target.value)
-          }
-          required
-        />
-
-
-        <button type="submit">
-
-          {editId ? 'Update' : 'Add'} Account
-
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#1976d2',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+            alignSelf: 'flex-end'
+          }}
+        >
+          {loading ? 'Processing...' : editId ? 'Update' : 'Add'} Account
         </button>
 
-
-        {/* Cancel editing */}
-
         {editId && (
-
           <button
             type="button"
-            onClick={resetForm}
+            onClick={() => {
+              resetForm();
+              clearMessages();
+            }}
+            disabled={loading}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#757575',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.6 : 1,
+              alignSelf: 'flex-end'
+            }}
           >
             Cancel
           </button>
-
         )}
-
       </form>
 
+      {/* Loading Indicator */}
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          ⏳ Loading...
+        </div>
+      )}
 
-      {/* ==========================
-          TABLE
-          ========================== */}
-
-      <table
-        border="1"
-        cellPadding="10"
-        style={{
-          marginTop: '20px',
-          width: '100%',
-          textAlign: 'center',
-          borderCollapse: 'collapse'
-        }}
-      >
-
-        <thead>
-
-          <tr>
-
-            <th>ID</th>
-
-            <th>Name</th>
-
-            <th>Balance</th>
-
-            <th>Actions</th>
-
-          </tr>
-
-        </thead>
-
-
-        <tbody>
-
-          {currentAccounts.length > 0 ? (
-
-            currentAccounts.map((account) => (
-
-              <tr key={account.id}>
-
-                <td>
-                  {account.id}
-                </td>
-
-                <td>
-                  {account.name}
-                </td>
-
-                <td>
-                  {account.balance}
-                </td>
-
-                <td>
-
-                  <button
-                    onClick={() =>
-                      handleEdit(account)
-                    }
-                  >
-                    Edit
-                  </button>
-
-
-                  <button
-                    onClick={() =>
-                      handleDelete(account.id)
-                    }
-                  >
-                    Delete
-                  </button>
-
-                </td>
-
-              </tr>
-
-            ))
-
-          ) : (
-
-            <tr>
-
-              <td colSpan="4">
-                No accounts found
-              </td>
-
-            </tr>
-
-          )}
-
-        </tbody>
-
-      </table>
-
-
-      {/* ==========================
-          PAGINATION
-          ========================== */}
-
-      <div
-        style={{
-          marginTop: '20px',
-          textAlign: 'center'
-        }}
-      >
-
-        <button
-          onClick={previousPage}
-          disabled={currentPage === 1}
-        >
-          Previous
-        </button>
-
-
-        <span
+      {/* Table */}
+      {!loading && (
+        <table
+          border="1"
+          cellPadding="10"
           style={{
-            margin: '0 20px',
-            fontWeight: 'bold'
+            marginTop: '20px',
+            width: '100%',
+            textAlign: 'center',
+            borderCollapse: 'collapse'
           }}
         >
+          <thead>
+            <tr style={{ backgroundColor: '#f5f5f5' }}>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Balance</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
 
-          Page {currentPage} of {totalPages}
+          <tbody>
+            {currentAccounts.length > 0 ? (
+              currentAccounts.map((account) => (
+                <tr key={account.id} style={{ borderBottom: '1px solid #ddd' }}>
+                  <td>{account.id}</td>
+                  <td>{account.name}</td>
+                  <td>{formatCurrency(account.balance)}</td>
+                  <td>
+                    <button
+                      onClick={() => handleEdit(account)}
+                      disabled={loading}
+                      style={{
+                        padding: '6px 12px',
+                        marginRight: '5px',
+                        backgroundColor: '#ff9800',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        opacity: loading ? 0.6 : 1
+                      }}
+                    >
+                      Edit
+                    </button>
 
-        </span>
+                    <button
+                      onClick={() => handleDelete(account.id)}
+                      disabled={loading}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#f44336',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        opacity: loading ? 0.6 : 1
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="4">No accounts found</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
 
+      {/* Pagination */}
+      {!loading && accounts.length > 0 && (
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <button
+            onClick={previousPage}
+            disabled={currentPage === 1}
+            style={{
+              padding: '8px 16px',
+              marginRight: '10px',
+              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+              opacity: currentPage === 1 ? 0.5 : 1
+            }}
+          >
+            Previous
+          </button>
 
-        <button
-          onClick={nextPage}
-          disabled={
-            currentPage === totalPages ||
-            totalPages === 0
-          }
-        >
-          Next
-        </button>
+          <span style={{ margin: '0 20px', fontWeight: 'bold' }}>
+            Page {currentPage} of {totalPages}
+          </span>
 
-      </div>
+          <button
+            onClick={nextPage}
+            disabled={currentPage === totalPages}
+            style={{
+              padding: '8px 16px',
+              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+              opacity: currentPage === totalPages ? 0.5 : 1
+            }}
+          >
+            Next
+          </button>
+        </div>
+      )}
 
-
-      {/* ==========================
-          TOTAL ACCOUNTS
-          ========================== */}
-
-      <p
-        style={{
-          textAlign: 'center',
-          marginTop: '10px'
-        }}
-      >
-
-        Total Accounts: {accounts.length}
-
-      </p>
-
+      {/* Total Accounts */}
+      {!loading && (
+        <p style={{ textAlign: 'center', marginTop: '10px', color: '#666' }}>
+          Total Accounts: {accounts.length}
+        </p>
+      )}
     </div>
-
   );
-
 }
-
 
 export default AccountsCRUD3;
