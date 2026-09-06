@@ -10,7 +10,7 @@ function AccountsCRUD1() {
   const [currentPage, setCurrentPage] = useState(1);
   const accountsPerPage = 4;
 
-  const API = 'http://localhost:5000/accounts';
+  const API = 'https://magnetic-depose-probing.ngrok-free.dev/accounts';
 
   // READ
   const fetchAccounts = () => {
